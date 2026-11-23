@@ -96,7 +96,7 @@ export const evolution = {
       webhook: {
         url: webhookUrlFor(webhookSecret),
         byEvents: false,
-        base64: false,
+        base64: true,
         events: WEBHOOK_EVENTS,
       },
     });
@@ -104,7 +104,7 @@ export const evolution = {
 
   async setWebhook(instance: string, webhookSecret: string) {
     return call("POST", `/webhook/set/${enc(instance)}`, {
-      webhook: { enabled: true, url: webhookUrlFor(webhookSecret), byEvents: false, base64: false, events: WEBHOOK_EVENTS },
+      webhook: { enabled: true, url: webhookUrlFor(webhookSecret), byEvents: false, base64: true, events: WEBHOOK_EVENTS },
     });
   },
 
@@ -198,6 +198,9 @@ export interface InboundMessage {
   media: "text" | "audio" | "image";
   durationSec: number | null;
   timestamp: string;
+  /** Inline media when the webhook is configured with base64: true. */
+  mediaBase64: string | null;
+  mimetype: string | null;
 }
 
 const PHONE_JID = /^(\d{6,20})(?::\d+)?@s\.whatsapp\.net$/;
@@ -233,15 +236,18 @@ export function parseMessageUpsert(data: unknown): InboundMessage | null {
   let text = "";
   let media: InboundMessage["media"] = "text";
   let durationSec: number | null = null;
+  let mimetype: string | null = null;
 
   if (typeof inner.conversation === "string") text = inner.conversation;
   else if (inner.extendedTextMessage?.text) text = inner.extendedTextMessage.text;
   else if (inner.audioMessage) {
     media = "audio";
     durationSec = Number(inner.audioMessage.seconds ?? 0) || null;
+    mimetype = inner.audioMessage.mimetype ?? "audio/ogg";
   } else if (inner.imageMessage) {
     media = "image";
     text = inner.imageMessage.caption ?? "";
+    mimetype = inner.imageMessage.mimetype ?? "image/jpeg";
   } else if (inner.videoMessage) text = inner.videoMessage.caption ? `🎬 ${inner.videoMessage.caption}` : "🎬 Video";
   else if (inner.documentMessage || inner.documentWithCaptionMessage) {
     const doc = inner.documentMessage ?? inner.documentWithCaptionMessage?.message?.documentMessage;
@@ -266,6 +272,8 @@ export function parseMessageUpsert(data: unknown): InboundMessage | null {
     media,
     durationSec,
     timestamp: ts ? new Date(ts * 1000).toISOString() : new Date().toISOString(),
+    mediaBase64: media !== "text" && typeof m.base64 === "string" && m.base64.length > 0 ? m.base64 : null,
+    mimetype,
   };
 }
 

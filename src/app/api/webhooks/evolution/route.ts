@@ -59,7 +59,13 @@ export async function POST(req: NextRequest) {
       });
       if (error) return rpcError(error);
       if (id && !msg.fromMe) {
-        after(() => handleInbound({ instance, secret }, id as string, msg.waId, msg.media).catch((e) => console.error("[ai] pipeline", e)));
+        after(() =>
+          handleInbound({ instance, secret }, id as string, msg.waId, msg.media, {
+            base64: msg.mediaBase64,
+            mimetype: msg.mimetype,
+            caption: msg.text,
+          }).catch((e) => console.error("[ai] pipeline", e)),
+        );
       }
       return NextResponse.json({ ok: true, id });
     }

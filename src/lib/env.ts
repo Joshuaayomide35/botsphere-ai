@@ -11,6 +11,11 @@ export const env = {
   openaiKey: () => process.env.OPENAI_API_KEY ?? "",
   deepgramKey: () => process.env.DEEPGRAM_API_KEY ?? "",
   elevenlabsKey: () => process.env.ELEVENLABS_API_KEY ?? "",
+  geminiKey: () => process.env.GEMINI_API_KEY ?? "",
+  geminiMediaModel: () => process.env.GEMINI_MEDIA_MODEL || "gemini-2.5-flash",
+  geminiTtsModel: () => process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts",
+  /** OpenRouter vision model used to read images when no Gemini key is set. */
+  openrouterVisionModel: () => process.env.OPENROUTER_VISION_MODEL || "google/gemini-2.5-flash",
 };
 
 function required(name: string) {

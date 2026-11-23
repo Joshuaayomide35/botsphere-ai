@@ -2,7 +2,7 @@ import "server-only";
 import { createAnonClient } from "@/lib/supabase/anon";
 import { evolution, toWaNumber } from "@/lib/adapters/evolution";
 import { aiConfigured, generateReply, type AiDecision, type AiPayload } from "@/lib/ai/openrouter";
-import { synthesize, transcribe, ttsConfigured } from "@/lib/ai/voice";
+import { describeImage, synthesize, transcribe, ttsConfigured } from "@/lib/ai/voice";
 import { sleep } from "@/lib/utils";
 
 interface Creds {
@@ -16,17 +16,32 @@ const log = (...a: unknown[]) => console.log("[ai]", ...a);
  * Inbound pipeline for one contact message:
  * voice note → transcript, then (if the AI is on duty for this chat) generate, pace, send and record the reply.
  */
-export async function handleInbound(c: Creds, messageId: string, waId: string, media: "text" | "audio" | "image") {
+export async function handleInbound(
+  c: Creds,
+  messageId: string,
+  waId: string,
+  media: "text" | "audio" | "image",
+  inline: { base64: string | null; mimetype: string | null; caption?: string } = { base64: null, mimetype: null },
+) {
   const db = createAnonClient();
 
-  if (media === "audio") {
+  // Hear voice notes / see images before the AI answers, so it never says "I can't hear/see that".
+  if (media === "audio" || media === "image") {
+    let understood: string;
     try {
-      const file = await evolution.getMediaBase64(c.instance, waId);
-      const text = await transcribe(Buffer.from(file.base64, "base64"), file.mimetype);
-      await db.rpc("wa_ai_store_transcript", { p_instance: c.instance, p_secret: c.secret, p_message_id: messageId, p_transcript: text || "(inaudible)", p_media_url: null });
+      const file = inline.base64
+        ? { base64: inline.base64, mimetype: inline.mimetype ?? (media === "audio" ? "audio/ogg" : "image/jpeg") }
+        : await evolution.getMediaBase64(c.instance, waId);
+      const bytes = Buffer.from(file.base64, "base64");
+      understood =
+        media === "audio"
+          ? (await transcribe(bytes, file.mimetype)) || "(inaudible)"
+          : await describeImage(bytes, file.mimetype, inline.caption || undefined);
     } catch (e) {
-      log("transcription failed:", (e as Error).message);
+      log(`${media} processing failed:`, (e as Error).message);
+      understood = media === "audio" ? "(voice note could not be transcribed)" : "(image could not be analysed)";
     }
+    await db.rpc("wa_ai_store_transcript", { p_instance: c.instance, p_secret: c.secret, p_message_id: messageId, p_transcript: understood, p_media_url: null });
   }
 
   if (!aiConfigured()) return;

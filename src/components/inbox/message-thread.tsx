@@ -242,6 +242,7 @@ function Bubble({ m }: { m: Message }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={mediaSrc} alt={m.content_text ?? "Image"} className="max-h-72 rounded-lg" loading="lazy" />
             {m.content_text && <p className="whitespace-pre-wrap">{m.content_text}</p>}
+            {m.transcript_text && !out && <p className="rounded-lg bg-black/20 px-2.5 py-1.5 text-xs text-fg-2 italic">AI saw: {m.transcript_text}</p>}
           </div>
         ) : (
           <p className="break-words whitespace-pre-wrap">{m.content_text}</p>

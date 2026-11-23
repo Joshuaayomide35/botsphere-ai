@@ -96,6 +96,7 @@ export function buildSystemPrompt(p: AiPayload, mode: "reply" | "follow_up" | "d
         }\nWhen handing over, reply with one short, kind message telling the customer a team member will follow up shortly.`
       : "",
     "# WhatsApp style\n- Plain text, no markdown headings or tables. Short paragraphs.\n- Reply in the customer's language.\n- Never invent facts that are not in the knowledge base.",
+    "# Voice notes and images\nCustomer voice notes reach you as \"[voice note] <transcript>\" and images as \"[image] What the image shows: <description>\". You CAN hear voice notes and see images: answer their content naturally. Never ask the customer to type instead, and never say you can't listen to audio or view images. Only if the transcript says it could not be transcribed/analysed, apologise briefly and ask them to resend it.",
     mode === "follow_up"
       ? `# Task\nThe customer stopped replying after your last message. Write ONE short, natural follow-up nudge (max 35 words) to re-engage them. Do not repeat your previous message.${
           cfg.follow_up_message?.trim() ? `\nGuidance from the business: ${cfg.follow_up_message.trim()}` : ""
@@ -117,7 +118,7 @@ export function historyToMessages(history: AiPayload["history"]): ChatMessage[] 
       h.media_type === "audio"
         ? `[voice note] ${h.transcript_text ?? "(no transcript)"}`
         : h.media_type === "image"
-          ? `[image] ${h.content_text ?? ""}`
+          ? `[image${h.content_text ? ` with caption "${h.content_text}"` : ""}] ${h.transcript_text ? `What the image shows: ${h.transcript_text}` : ""}`
           : (h.content_text ?? "");
     if (!body.trim()) continue;
     const role = h.sender_type === "contact" ? "user" : "assistant";

@@ -37,7 +37,7 @@ npm run dev                     # http://localhost:3000
 ```
 
 Sign in, open **WhatsApp Connect**, click **Generate QR code**, and scan it from WhatsApp → *Linked devices*.
-Add `OPENROUTER_API_KEY` (plus `OPENAI_API_KEY` for voice notes) to `.env.local` to turn the AI on.
+Add `OPENROUTER_API_KEY` (chat) and `GEMINI_API_KEY` (voice notes and images) to `.env.local` to turn the AI on.
 
 ### Environment variables (`.env.local`)
 
@@ -47,7 +47,8 @@ Add `OPENROUTER_API_KEY` (plus `OPENAI_API_KEY` for voice notes) to `.env.local`
 | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` | Evolution API base URL and its `AUTHENTICATION_API_KEY` |
 | `WEBHOOK_BASE_URL` | The URL Evolution uses to call this app. Use `http://host.docker.internal:3000` when both run on your PC, or your public https URL when deployed |
 | `OPENROUTER_API_KEY` | AI replies, sandbox and co-pilot |
-| `OPENAI_API_KEY` | Whisper speech-to-text and TTS voice notes |
+| `GEMINI_API_KEY` | Recommended. Gemini hears voice notes, sees customer images, and speaks voice-note replies |
+| `OPENAI_API_KEY` | Optional fallback: Whisper speech-to-text and OpenAI TTS |
 | `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY` | Optional alternative STT and TTS providers |
 
 ## How it works

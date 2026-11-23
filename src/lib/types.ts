@@ -160,9 +160,9 @@ export const LLM_MODELS = [
 ];
 
 export const VOICES = [
-  { id: "aria", label: "Aria", hint: "Warm · female", openai: "nova" },
-  { id: "marcus", label: "Marcus", hint: "Calm · male", openai: "onyx" },
-  { id: "layla", label: "Layla", hint: "Bright · female", openai: "shimmer" },
-  { id: "noah", label: "Noah", hint: "Friendly · male", openai: "echo" },
-  { id: "sage", label: "Sage", hint: "Neutral", openai: "alloy" },
+  { id: "aria", label: "Aria", hint: "Warm · female", openai: "nova", gemini: "Aoede" },
+  { id: "marcus", label: "Marcus", hint: "Calm · male", openai: "onyx", gemini: "Charon" },
+  { id: "layla", label: "Layla", hint: "Bright · female", openai: "shimmer", gemini: "Kore" },
+  { id: "noah", label: "Noah", hint: "Friendly · male", openai: "echo", gemini: "Puck" },
+  { id: "sage", label: "Sage", hint: "Neutral", openai: "alloy", gemini: "Zephyr" },
 ];
