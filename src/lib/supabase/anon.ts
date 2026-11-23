@@ -1,3 +1,4 @@
+import { SUPABASE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
@@ -6,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
  * SECURITY DEFINER RPCs that verify the per-channel webhook secret, so no service-role key is needed.
  */
 export function createAnonClient() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  return createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
