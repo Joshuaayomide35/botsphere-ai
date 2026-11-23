@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { subscribeAsUser } from "@/lib/supabase/realtime";
 import { setGlobalAiPaused, signOut, switchWorkspace } from "@/app/actions";
 import { Switch } from "@/components/ui/switch";
 import { Avatar } from "@/components/ui/avatar";
@@ -85,13 +86,9 @@ function useLiveUnread(initial: number, workspaceId: string) {
       const { data } = await supabase.from("conversations").select("unread_count").eq("workspace_id", workspaceId).gt("unread_count", 0);
       setUnread((data ?? []).reduce((s, r) => s + (r.unread_count as number), 0));
     };
-    const ch = supabase
-      .channel(`unread:${workspaceId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `workspace_id=eq.${workspaceId}` }, refresh)
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+    return subscribeAsUser(supabase, `unread:${workspaceId}`, (ch) =>
+      ch.on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `workspace_id=eq.${workspaceId}` }, refresh),
+    );
   }, [workspaceId]);
   return unread;
 }
@@ -251,16 +248,12 @@ function TopBar({ workspace, channel, aiPaused, onSearch }: ShellProps & { onSea
 
   useEffect(() => {
     const supabase = createClient();
-    const ch = supabase
-      .channel(`channel-status:${workspace.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "channels", filter: `workspace_id=eq.${workspace.id}` }, (p) => {
+    return subscribeAsUser(supabase, `channel-status:${workspace.id}`, (ch) =>
+      ch.on("postgres_changes", { event: "*", schema: "public", table: "channels", filter: `workspace_id=eq.${workspace.id}` }, (p) => {
         const row = p.new as { status?: ChannelStatus; phone_number?: string | null };
         if (row?.status) setStatus({ status: row.status, phone: row.phone_number ?? null });
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+      }),
+    );
   }, [workspace.id]);
 
   const pill = useMemo(() => {

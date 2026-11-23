@@ -37,9 +37,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ state: "connecting", qr });
       }
       case "status": {
-        if (!(await evolution.instanceExists(instance_name))) return NextResponse.json({ state: "close" });
-        const state = await evolution.connectionState(instance_name);
+        const exists = await evolution.instanceExists(instance_name);
+        const state = exists ? await evolution.connectionState(instance_name) : "close";
         if (state === "open") return NextResponse.json(await syncConnected(instance_name, setStatus));
+        // Keep the DB honest when the engine lost the session (e.g. Evolution container recreated).
+        if (state === "close") await setStatus({ status: "disconnected" });
         return NextResponse.json({ state });
       }
       case "restart": {

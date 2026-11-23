@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MessagesSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { subscribeAsUser } from "@/lib/supabase/realtime";
 import { useWorkspace } from "@/components/layout/workspace-provider";
 import { EmptyState } from "@/components/ui/misc";
 import { cn } from "@/lib/utils";
@@ -64,8 +65,8 @@ export function InboxClient({
 
   // Realtime: conversation list, contacts and the open thread.
   useEffect(() => {
-    const ch = supabase
-      .channel(`inbox:${ws.id}`)
+    return subscribeAsUser(supabase, `inbox:${ws.id}`, (ch) =>
+      ch
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations", filter: `workspace_id=eq.${ws.id}` }, (p) => {
         if (p.eventType === "DELETE") setConvs((l) => l.filter((c) => c.id !== (p.old as { id: string }).id));
         else upsertConv(p.new as Conversation);
@@ -87,11 +88,8 @@ export function InboxClient({
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "contacts", filter: `workspace_id=eq.${ws.id}` }, (p) => {
         const ct = p.new as Contact;
         setConvs((l) => l.map((c) => (c.contact_id === ct.id ? { ...c, contact: { ...c.contact, ...ct } } : c)));
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+      }),
+    );
   }, [supabase, ws.id, upsertConv]);
 
   // Load the open thread.

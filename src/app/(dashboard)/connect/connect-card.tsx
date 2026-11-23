@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useWorkspace } from "@/components/layout/workspace-provider";
 import { createClient } from "@/lib/supabase/client";
+import { subscribeAsUser } from "@/lib/supabase/realtime";
 import { cn, timeAgo } from "@/lib/utils";
 import type { ChannelStatus } from "@/lib/types";
 
@@ -32,6 +33,8 @@ export function ConnectCard({ initial, configured, canManage }: { initial: Initi
   const [busy, setBusy] = useState<string | null>(null);
   const [qrAge, setQrAge] = useState(0);
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrRef = useRef<string | null>(null);
+  qrRef.current = qr;
 
   const stopPolling = () => {
     if (poll.current) clearInterval(poll.current);
@@ -65,7 +68,8 @@ export function ConnectCard({ initial, configured, canManage }: { initial: Initi
         try {
           const s = await api("status");
           if (s.state === "open") markConnected(s.phone, s.profileName);
-          else if (ticks % 10 === 0) {
+          // Refresh the QR every 30s, or every 6s while WhatsApp hasn't produced one yet.
+          else if (qrRef.current ? ticks % 10 === 0 : ticks % 2 === 0) {
             const fresh = await api("start");
             if (fresh.state === "open") markConnected(fresh.phone, fresh.profileName);
             else {
@@ -92,20 +96,27 @@ export function ConnectCard({ initial, configured, canManage }: { initial: Initi
 
   useEffect(() => stopPolling, []);
 
+  // Verify the stored status against the engine once on load.
+  useEffect(() => {
+    if (!configured) return;
+    api("status")
+      .then((s) => {
+        if (s.state === "open") markConnected(s.phone, s.profileName);
+        else if (!poll.current) setState((cur) => (cur === "connected" ? "disconnected" : cur));
+      })
+      .catch(() => {});
+  }, [configured, markConnected]);
+
   // Live status from the Evolution webhook (connection.update → channels row).
   useEffect(() => {
     const supabase = createClient();
-    const ch = supabase
-      .channel(`connect:${ws.id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "channels", filter: `workspace_id=eq.${ws.id}` }, (p) => {
+    return subscribeAsUser(supabase, `connect:${ws.id}`, (ch) =>
+      ch.on("postgres_changes", { event: "UPDATE", schema: "public", table: "channels", filter: `workspace_id=eq.${ws.id}` }, (p) => {
         const row = p.new as { status: ChannelStatus; phone_number: string | null; profile_name: string | null };
         if (row.status === "connected") markConnected(row.phone_number, row.profile_name);
         if (row.status === "disconnected" && !poll.current) setState("disconnected");
-      })
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+      }),
+    );
   }, [ws.id, markConnected]);
 
   async function act(action: "restart" | "logout") {
@@ -186,6 +197,12 @@ export function ConnectCard({ initial, configured, canManage }: { initial: Initi
                 <p className="tnum mt-1 text-xs text-fg-3">
                   {state === "qr" ? `Checking every 3s · QR refreshes automatically (${qrAge}s)` : "Starting the WhatsApp engine…"}
                 </p>
+                {state === "qr" && !qr && qrAge >= 24 && (
+                  <Notice tone="warn" className="mt-3 max-w-md text-left">
+                    Still waiting for WhatsApp to issue a QR code. Make sure the Evolution API container has internet access
+                    (check <code className="font-mono">docker logs botsphere_evolution_api</code>), then click “New QR code”.
+                  </Notice>
+                )}
               </>
             ) : (
               <>
